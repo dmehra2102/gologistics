@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/dmehra2102/gologistics/gen/go/common/v1;commonv1";
+
+// TimeRange represents a time window
+message TimeRange {
+    google.protobuf.Timestamp start = 1;
+    google.protobuf.Timestamp end = 2;
+}
+
+// Pagination for list operations
+message Pagination {
+    int32 page = 1;
+    int32 page_size = 2;
+    string cursor = 3;
+}
+
+// PaginationMetadata returned in list responses
+message PaginationMetadata {
+    // Current page number
+    int32 current_page = 1;
+    
+    // Total number of pages
+    int32 total_pages = 2;
+    
+    // Total number of items
+    int64 total_items = 3;
+    
+    // Next cursor (empty if no more pages)
+    string next_cursor = 4;
+    
+    // Whether there are more pages
+    bool has_next = 5;
+}
+
