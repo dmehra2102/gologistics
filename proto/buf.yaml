@@ -20,3 +20,5 @@ breaking:
   except:
     - EXTENSION_MESSAGE_NO_DELETE
     - FIELD_SAME_DEFAULT
+deps:
+  - buf.build/googleapis/googleapis

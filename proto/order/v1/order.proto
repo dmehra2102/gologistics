@@ -1,0 +1,310 @@
+syntax = "proto3";
+
+package order.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "common/v1/error.proto";
+import "common/v1/timestamp.proto";
+
+option go_package = "github.com/dmehra2102/gologistics/gen/go/order/v1;orderv1";
+
+// OrderService handles order creation, updates and queries
+service OrderService {
+    // CreateOrder creates a new delivery order
+    rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/orders"
+            body: "*"
+        };
+    }
+
+    // GetOrder retrives an order by ID
+    rpc GetOrder(GetOrderRequest) returns (GetOrderResponse) {
+        option (google.api.http) = {
+            get: "/v1/orders/{order_id}"
+        };
+    }
+
+    // UpdateOrderStatus updats the status of an order
+    rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse) {
+        option (google.api.http) = {
+            patch: "/v1/orders/{order_id}/status"
+            body : "*"
+        };
+    }
+
+    // ListOrders returns a paginated list of orders
+    rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {
+        option (google.api.http) = {
+            get: "/v1/orders"
+        };
+    }
+
+    // AssignDriver assigns a driver to an order
+    rpc AssignDriver(AssignDriverRequest) returns (AssignDriverResponse) {
+        option (google.api.http) = {
+            post: "/v1/orders/{order_id}/assign"
+            body: "*"
+        };
+    }
+
+    // CancelOrder cancels an order
+    rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse) {
+        option (google.api.http) = {
+            delete: "/v1/orders/{order_id}"
+        };
+    }
+}
+
+// OrderStatus represents the lifecycle state of an order
+enum OrderStatus {
+    ORDER_STATUS_UNSPECIFIED = 0;
+    ORDER_STATUS_PENDING = 1;
+    ORDER_STATUS_ASSIGNED = 2;
+    ORDER_STATUS_PICKED_UP = 3;
+    ORDER_STATUS_IN_TRANSIT = 4;
+    ORDER_STATUS_DELIVERED = 5;
+    ORDER_STATUS_CANCELLED = 6;
+    ORDER_STATUS_FAILED = 7;
+}
+
+// OrderPriority determines handling urgency
+enum OrderPriority {
+    ORDER_PRIORITY_UNSPECIFIED = 0;
+    ORDER_PRIORITY_STANDARD = 1;
+    ORDER_PRIORITY_EXPRESS = 2;
+    ORDER_PRIORITY_URGENT = 3;
+}
+
+// Address represents a delivery location
+message Address {
+    string street_line1 = 1;
+    string street_line2 = 2;
+    string city = 3;
+    string state = 4;
+    string postal_code = 5;
+    string country = 6;
+    double latitude = 7;
+    double longitude = 8;
+    string delivery_instructions = 9;
+}
+
+// Customer Information
+message Customer {
+    string customer_id = 1;
+    string name = 2;
+    string phone  = 3;
+    string email = 4;
+}
+
+// Package information
+message Package {
+    string description = 1;
+    double weight_kg = 2;
+
+    // Dimensions in centimeters
+    Dimensions dimensions = 3;
+
+    // Declared value in USD (for insurance)
+    double declared_value_usd = 4;
+    
+    // Whether package requires signature
+    bool requires_signature = 5;
+    
+    // Fragile handling required
+    bool fragile = 6;
+}
+
+// Package dimensions
+message Dimensions {
+    // Length in centimeters (must be > 0)
+    double length_cm = 1;
+    
+    // Width in centimeters (must be > 0)
+    double width_cm = 2;
+    
+    // Height in centimeters (must be > 0)
+    double height_cm = 3;
+}
+
+// Driver information
+message Driver {
+    string driver_id = 1;
+    string name = 2;
+    string phone = 3;
+    
+    // Vehicle information
+    Vehicle vehicle = 4;
+    
+    // Current driver rating (0.0 - 5.0)
+    double rating = 5;
+}
+
+// Vehicle information
+message Vehicle {
+    // License plate
+    string license_plate = 1;
+    
+    // Make and model
+    string make_model = 2;
+    
+    // Color
+    string color = 3;
+    
+    // Vehicle type
+    VehicleType type = 4;
+}
+
+// VehicleType enum
+enum VehicleType {
+    VEHICLE_TYPE_UNSPECIFIED = 0;
+    VEHICLE_TYPE_MOTORCYCLE = 1;
+    VEHICLE_TYPE_CAR = 2;
+    VEHICLE_TYPE_VAN = 3;
+    VEHICLE_TYPE_TRUCK = 4;
+}
+
+// Order Represents a complete delivery order
+message Order {
+    string order_id = 1;
+    Customer customer = 2;
+    Address pickup_address = 3;
+    Address delivery_address = 4;
+    Package package = 5;
+    OrderStatus status = 6;
+    OrderPriority priority = 7;
+
+    // Assigned driver (null if not assigned)
+    Driver assigned_driver = 8;
+    
+    google.protobuf.Timestamp scheduled_pickup_time = 9;
+    google.protobuf.Timestamp estimated_delivery_time = 10;
+
+    // Actual pickup time (null until picked up)
+    google.protobuf.Timestamp actual_pickup_time = 11;
+    
+    // Actual delivery time (null until delivered)
+    google.protobuf.Timestamp actual_delivery_time = 12;
+
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+
+    double total_cost_inr = 15;
+
+    // Tracking number (server-generated, unique)
+    string tracking_number = 16;
+
+    // Notes or special instructions (max 1000 chars)
+    string notes = 17;
+    
+    // Cancellation reason (if cancelled)
+    string cancellation_reason = 18;
+}
+
+// CreateOrderRequest
+message CreateOrderRequest {
+    Customer customer = 1;
+    Address pickup_address = 2;
+    Address delivery_address = 3;
+    Package package = 4;
+    OrderPriority priority = 5;
+    google.protobuf.Timestamp scheduled_pickup_time = 6;
+
+    string notes = 7;
+    
+    // Idempotency key for duplicate prevention (UUID format)
+    string idempotency_key = 8;
+}
+
+// CreateOrderResponse
+message CreateOrderResponse {
+    Order order = 1;
+    repeated string warnings = 2;
+}
+
+// GetOrderRequest
+message GetOrderRequest {
+    string order_id = 1;
+    bool include_driver_details = 2;
+}
+
+// GetOrderResponse
+message GetOrderResponse {
+    Order order = 1;
+}
+
+// UpdateOrderStatusRequest
+message UpdateOrderStatusRequest {
+    // Order ID (required, UUID format)
+    string order_id = 1;
+    
+    // New status (required)
+    OrderStatus status = 2;
+    
+    string note = 3;
+    
+    // Location at time of status change
+    Location location = 4;
+}
+
+// Location for status updates
+message Location {
+    double latitude = 1;
+    double longitude = 2;
+    google.protobuf.Timestamp timestamp = 3;
+}
+
+// UpdateOrderStatusResponse
+message UpdateOrderStatusResponse {
+    Order order = 1;
+}
+
+// ListOrdersRequest
+message ListOrdersRequest {
+    repeated OrderStatus status_filter = 1;
+    string customer_id = 2;
+    string driver_id = 3;
+    repeated OrderPriority priority_filter = 4;
+    common.v1.TimeRange created_at_range = 5;
+    common.v1.Pagination pagination = 6;
+    string sort_by = 7;
+}
+
+// ListOrdersResponse
+message ListOrdersResponse {
+    repeated Order orders = 1;
+    common.v1.PaginationMetadata pagination_metadata = 2;
+}
+
+// AssignDriverRequest
+message AssignDriverRequest {
+    string order_id = 1;
+    string driver_id = 2;
+    google.protobuf.Timestamp estimated_pickup_time = 3;
+}
+
+// AssignDriverResponse
+message AssignDriverResponse {
+    Order order = 1;
+    
+    // Assignment confirmation ID
+    string assignment_id = 2;
+}
+
+// CancelOrderRequest
+message CancelOrderRequest {
+    string order_id = 1;
+    string reason = 2;
+
+    // Who initiated cancellation (customer/driver/system)
+    string cancelled_by = 3;
+}
+
+// CancelOrderResponse
+message CancelOrderResponse {
+    Order order = 1;
+    
+    // Refund amount in USD (if applicable)
+    double refund_amount_inr = 2;
+}
